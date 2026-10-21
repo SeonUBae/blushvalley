@@ -1,0 +1,29 @@
+name: 작업 기록
+on:
+  schedule:
+    - cron: '55 14 * * *'   # 매일 23:55 KST
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: studio-log
+jobs:
+  log:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: 기록 모으기
+        env:
+          STUDIO_READ_TOKEN: ${{ secrets.STUDIO_READ_TOKEN }}
+        run: node .github/studio/log.mjs
+      - name: 반영하기
+        run: |
+          [ -f events.json ] || exit 0
+          git add events.json
+          git diff --cached --quiet && exit 0
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" commit -q -m "작업 기록을 업데이트했어요"
+          git push -q

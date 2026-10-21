@@ -43,7 +43,7 @@ canvas{display:block;width:100%;height:100%;image-rendering:pixelated;image-rend
 <div class="frame">
   <canvas id="scene" width="256" height="448" role="img" aria-label="Blush Valley 픽셀 작업실. Bibi와 Combi, Buzzi, Honi가 일하고 걸어 다니는 모습"></canvas>
   <div class="tag" id="tag" hidden></div>
-  <div class="log" id="log" hidden aria-live="polite"><div class="st"><span id="src">studio.log</span><span id="clk"></span></div><div id="lines"><div class="empty">waiting for a signal…</div></div></div>
+  <div class="log" id="log" hidden aria-live="polite"><div class="st"><span id="src">studio.log</span><span id="clk"></span></div><div id="lines"><div class="empty">아직 기록이 없어요</div></div></div>
   <button class="tog" id="tog" type="button" aria-label="작업 기록 보기" aria-expanded="false"><span class="led"></span>log</button>
 </div>
 
@@ -275,7 +275,7 @@ canvas{display:block;width:100%;height:100%;image-rendering:pixelated;image-rend
     let N=isNight(), S=dayRow(log), beats=S?schedule(S):[], loopT=0, last=performance.now(), lastCheck=0;
     const LOOP=150; let tagged=null, tagUntil=0;
     $('src').textContent = S ? 'studio.log · daily' : 'studio.log · idle';
-    if(S) $('tog').classList.add('live');
+    if(S){ $('tog').classList.add('live'); $('lines').innerHTML='<div class="empty">'+S.d+' 기록을 다시 보여줘요</div>'; }
     function place(n){ const ch=C[n]; const p = n==='bibi' ? (N?'roomSeat':'lab') : ch.where; const [x,y,f]=P[p]; ch.x=x; ch.y=y; ch.dir=f; ch.where=p; ch.plan=[]; ch.step=null; ch.busy=false; }
     place('bibi');
     cv.addEventListener('click',e=>{ const r=cv.getBoundingClientRect(), x=(e.clientX-r.left)*W/r.width, y=(e.clientY-r.top)*H/r.height;
