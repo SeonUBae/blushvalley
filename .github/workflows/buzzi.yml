@@ -1,0 +1,33 @@
+name: Buzzi 검사
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+  pull-requests: write
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: 지도와 스크립트 검사
+        id: map
+        run: |
+          set +e
+          node tools/check-map.mjs > result.txt 2>&1
+          code=$?
+          cat result.txt
+          exit $code
+      - name: 결과 남기기
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const body = 'Buzzi · ' + (fs.existsSync('result.txt') ? fs.readFileSync('result.txt', 'utf8').trim() : '검사를 실행하지 못했어요.');
+            await github.rest.issues.createComment({ ...context.repo, issue_number: context.issue.number, body });
