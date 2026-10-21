@@ -1,4 +1,3 @@
-// Buzzi's check: the page script parses, and every place in the studio can be reached on foot.
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 
@@ -33,7 +32,7 @@ const near = (gx, gy) => {
   return null;
 };
 
-const SEATED = new Set(['sofaSit']); // poses drawn on furniture, reached by sitting down
+const SEATED = new Set(['sofaSit']);
 const names = Object.keys(P).filter(n => !SEATED.has(n));
 const cell = n => near(Math.floor(P[n][0] / CELL), Math.floor(P[n][1] / CELL));
 const start = cell(names[0]), seen = new Set([start.join()]), q = [start];

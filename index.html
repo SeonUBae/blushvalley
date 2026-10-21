@@ -48,8 +48,6 @@ canvas{display:block;width:100%;height:100%;image-rendering:pixelated;image-rend
 </div>
 
 <script>
-/* Blush Valley studio engine
-   map (nav grid) → characters (state + plans) → signals (who/what) → render */
 (function(){
   const W=256, H=448;
   const cv=document.getElementById('scene'), ctx=cv.getContext('2d');
@@ -62,17 +60,15 @@ canvas{display:block;width:100%;height:100%;image-rendering:pixelated;image-rend
   const rnd=(a,b)=>a+Math.random()*(b-a);
   const pick=a=>a[Math.floor(Math.random()*a.length)];
 
-  // ---------- time (KST)
   const kst=()=>{ try{ const p=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',hour12:false}).formatToParts(new Date());
     const g=k=>p.find(x=>x.type===k).value; return {day:g('year')+'-'+g('month')+'-'+g('day'),hour:(+g('hour'))%24}; }catch(e){ const d=new Date(); return {day:d.toISOString().slice(0,10),hour:d.getHours()}; } };
   const isNight=()=>{ const h=kst().hour; return h>=19 || h<9; };
 
-  // ---------- nav grid: feet positions, 2px cells, furniture footprints blocked
   const CELL=2, GW=W/CELL, GH=H/CELL;
   const BLOCK=[
     [0,0,256,90],[0,440,256,448],[0,0,4,448],[252,0,256,448],           // walls
     [18,86,75,172],[78,96,150,154],[101,166,115,178],                     // robot gantry, lab bench, stool
-    [158,80,166,210],[158,204,191,210],[214,204,256,210],                 // glass room (door 191–214)
+    [158,80,166,210],[158,204,191,210],[214,204,256,210],                 // glass room, door 191-214
     [164,82,181,108],[182,120,242,134],[220,130,244,148],[232,82,254,108],// room: plant, desk, armchair, shelf
     [0,238,20,264],[23,264,150,288],[164,296,186,314],                    // plant, work desk, tripod
     [12,336,98,368],[32,382,80,404],[108,355,114,360],                    // sofa, coffee table, floor lamp base
@@ -89,7 +85,7 @@ canvas{display:block;width:100%;height:100%;image-rendering:pixelated;image-rend
     for(let r=1;r<20;r++) for(let dy=-r;dy<=r;dy++) for(let dx=-r;dx<=r;dx++) if(free(gx+dx,gy+dy)) return [gx+dx,gy+dy];
     return [gx,gy];
   }
-  function los(ax,ay,bx,by){ // straight line stays on free cells
+  function los(ax,ay,bx,by){
     const n=Math.ceil(Math.hypot(bx-ax,by-ay));
     for(let i=0;i<=n;i++){ const t=n?i/n:0; if(!free(Math.floor((ax+(bx-ax)*t)/CELL),Math.floor((ay+(by-ay)*t)/CELL))) return false; }
     return true;
@@ -106,13 +102,12 @@ canvas{display:block;width:100%;height:100%;image-rendering:pixelated;image-rend
     let end=goal;
     if(prev[goal]<0){ let best=1e9; for(let i=0;i<t;i++){ const c=q[i], d=Math.hypot(c%GW-tx,((c/GW)|0)-ty); if(d<best){best=d;end=c;} } }
     const raw=[]; for(let c=end; c!==s; c=prev[c]) raw.push([(c%GW)*CELL+1,((c/GW)|0)*CELL+1]); raw.reverse();
-    const out=[]; let cur=[ax,ay];   // string-pull into straight segments
+    const out=[]; let cur=[ax,ay];
     for(let i=0;i<raw.length;){ let j=raw.length-1; while(j>i && !los(cur[0],cur[1],raw[j][0],raw[j][1])) j--; out.push(raw[j]); cur=raw[j]; i=j+1; }
     if(end===goal && (los(cur[0],cur[1],bx,by) || Math.hypot(bx-cur[0],by-cur[1])<5)) out.push([bx,by]);
     return out;
   }
 
-  // ---------- places (feet x, feet y, facing)
   const P={
     combiSeat:[54,262,'down'], buzziSeat:[114,262,'down'], byCombi:[80,256,'left'],
     lab:[75,182,'down'], solder:[106,182,'up'], robot:[50,180,'up'], labWalk:[130,186,'left'],
@@ -121,16 +116,13 @@ canvas{display:block;width:100%;height:100%;image-rendering:pixelated;image-rend
     coffee:[184,406,'up'], fridge:[244,388,'up'], shelf:[142,394,'up'],
     sofaFront:[56,376,'up'], sofaSit:[56,356,'down'], window:[198,100,'up']
   };
-  // background pieces drawn in front of a character standing behind them
   const OCCL=[ {x0:22,x1:150,y0:228,y1:263,clip:262}, {x0:182,x1:242,y0:100,y1:122,clip:112}, {x0:12,x1:98,y0:340,y1:360,clip:352} ];
 
-  // ---------- characters
   const ROW={down:0,left:1,right:2,up:3};
   const ROLE={bibi:'judge',combi:'making',buzzi:'questioning',honi:'showing'};
   function Char(name,place){ const [x,y,f]=P[place]; return {name,x,y,dir:f,plan:[],step:null,t:0,walkT:0,path:null,emote:null,fx:null,fxT:0,carry:null,blinkAt:0,where:place}; }
   const C={ combi:Char('combi','combiSeat'), buzzi:Char('buzzi','buzziSeat'), honi:Char('honi','photo'), bibi:Char('bibi','lab') };
 
-  // plan steps: {go:place} | {do:fx, s:sec, emote, face, carry} | {sit:place}
   const go=p=>({go:p}), act=(fx,s,o={})=>Object.assign({do:fx,s},o);
   function idlePlan(ch,N){
     const at=(p,fx,s,o)=>[go(p),act(fx,s,o)];
@@ -145,7 +137,6 @@ canvas{display:block;width:100%;height:100%;image-rendering:pixelated;image-rend
     }
   }
 
-  // ---------- signals → plans (who/what only; nothing else is ever read)
   const KIND={work:'combi',reject:'buzzi',pass:'buzzi',ship:'bibi',copy:'honi',approve:'bibi',read:null,wait:null};
   function signal(who,what,N){
     if(!(what in KIND)) return false;
@@ -167,7 +158,6 @@ canvas{display:block;width:100%;height:100%;image-rendering:pixelated;image-rend
   function interrupt(ch,plan){ ch.plan=plan.slice(); ch.step=null; ch.path=null; ch.fx=null; ch.emote=null; ch.carry=null; ch.busy=true; }
   function react(n,plan){ const ch=C[n]; if(ch && !ch.busy) interrupt(ch,plan); }
 
-  // ---------- update
   const SPEED=18;
   function nextStep(ch,N){
     if(!ch.plan.length){ ch.busy=false; ch.plan=idlePlan(ch,N); }
@@ -196,7 +186,6 @@ canvas{display:block;width:100%;height:100%;image-rendering:pixelated;image-rend
     if(ch.t>=s.s) ch.step=null;
   }
 
-  // ---------- drawing
   function frameCol(ch,now){
     if(ch.step && ch.step.go && !reduce) return Math.floor(ch.walkT*8)%4;
     if(ch.emote==='happy') return 5;
@@ -240,8 +229,6 @@ canvas{display:block;width:100%;height:100%;image-rendering:pixelated;image-rend
 
   }
 
-  // ---------- signal sources
-  // daily: blushvalley/events.json → today's counts, replayed across a loop
   const KINDS=['work','pass','reject','ship','copy','approve'];
   function dayRow(log){
     if(!log || log.v!==1 || !Array.isArray(log.days)) return null;
@@ -250,14 +237,13 @@ canvas{display:block;width:100%;height:100%;image-rendering:pixelated;image-rend
     const S={d:row.d}; KINDS.forEach(k=>{ const n=+row[k]; S[k]=Number.isFinite(n)&&n>0?Math.min(99,Math.floor(n)):0; });
     return S;
   }
-  function schedule(S){ // one loop of the day: each count becomes a beat, capped so the room never floods
+  function schedule(S){
     const beats=[]; KINDS.forEach(k=>{ for(let i=0;i<Math.min(S[k],k==='work'?6:3);i++) beats.push(k); });
     for(let i=beats.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [beats[i],beats[j]]=[beats[j],beats[i]]; }
     const gap=Math.max(9,Math.min(16,120/Math.max(1,beats.length)));
     return beats.map((k,i)=>({at:4+i*gap,what:k}));
   }
 
-  // ---------- log panel
   const $=id=>document.getElementById(id);
   const COLOR={combi:'#6F8FBF',buzzi:'#AD4A5B',honi:'#D9A441',bibi:'#E07A98'};
   const lines=[];
@@ -267,7 +253,6 @@ canvas{display:block;width:100%;height:100%;image-rendering:pixelated;image-rend
   }
   $('tog').onclick=()=>{ const h=$('log').hidden=!$('log').hidden; $('tog').setAttribute('aria-expanded',String(!h)); };
 
-  // ---------- main
   Promise.all(['bg-day.png','bg-night.png','sheet-bibi.png','sheet-combi.png','sheet-buzzi.png','sheet-honi.png'].map(load).concat(
     fetch('events.json',{cache:'no-store'}).then(r=>r.ok?r.json():null).catch(()=>null)
   )).then(([day,night,bibi,combi,buzzi,honi,log])=>{
@@ -282,7 +267,7 @@ canvas{display:block;width:100%;height:100%;image-rendering:pixelated;image-rend
       const hit=Object.values(C).filter(c=>Math.abs(c.x-x)<9 && y>c.y-38 && y<c.y+2).sort((a,b)=>b.y-a.y)[0];
       if(hit){ tagged=hit; tagUntil=performance.now()+2200; $('tag').innerHTML=hit.name[0].toUpperCase()+hit.name.slice(1)+' <span>· '+ROLE[hit.name]+'</span>'; if(!hit.busy) interrupt(hit,[act(null,1.6,{emote:'happy',face:'down'})]); } });
     if(DEBUG) window.__bv={C,BLOCK};
-    window.studio={ signal:(who,what)=>{ const ok=signal(who,what,N); if(ok) logLine(KIND[what]||who,what,kst().day); return ok; } }; // live feed hook (private mode)
+    window.studio={ signal:(who,what)=>{ const ok=signal(who,what,N); if(ok) logLine(KIND[what]||who,what,kst().day); return ok; } };
     function frame(now){
       const dt=Math.min(.1,(now-last)/1000); last=now; const t=now/1000;
       if(now-lastCheck>20000){ lastCheck=now; const n=isNight(); if(n!==N){ N=n; place('bibi'); } }
@@ -290,7 +275,7 @@ canvas{display:block;width:100%;height:100%;image-rendering:pixelated;image-rend
         for(const b of beats) if((prev<=b.at && loopT>b.at) || (loopT<prev && b.at>prev)) { if(signal(null,b.what,N)) logLine(KIND[b.what],b.what,S.d); }
         if(loopT<prev) beats=schedule(S); }
       const bg=N?night:day; if(bg) ctx.drawImage(bg,0,0); else R(0,0,W,H,'#F3D9DF');
-      if(!N){ const c=Math.floor(t*1.5)%2===0?'#FF9EC0':'#F7A8C0'; R(43,104,2,3,c);R(48,104,2,3,c); } // robot cheek LEDs
+      if(!N){ const c=Math.floor(t*1.5)%2===0?'#FF9EC0':'#F7A8C0'; R(43,104,2,3,c);R(48,104,2,3,c); }
       R(68,242,14,14,'#1E2630');
       for(let i=0;i<5;i++){ const yy=243+((i*3+Math.floor(t*(reduce?0:4)))%12); const L=3+((i*5)%8); R(69,yy,L,1,i%2?'#9FE0B4':'#9DB8DA'); }
       Object.values(C).forEach(ch=>update(ch,dt,N));

@@ -1,4 +1,3 @@
-// Daily studio log: counts per day from the app repo. Only { d, work, pass, reject, ship, copy, approve } leaves this script.
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 
 const REPO = 'SeonUBae/Body-ios';
@@ -26,7 +25,6 @@ const add = (t, kind) => {
   rows.get(d)[kind]++;
 };
 
-// commits: who made it decides the kind; log and helper branches are skipped
 const branches = (await get(`/repos/${REPO}/branches?per_page=100`)).map(b => b.name)
   .filter(n => n === 'main' || /^(claude|combi|honi|buzzi)\//.test(n));
 const seen = new Set();
@@ -43,7 +41,6 @@ for (const b of branches) {
   }
 }
 
-// workflow runs: checks and releases
 const runs = [];
 for (let page = 1, list; page <= 10 && (list = (await get(`/repos/${REPO}/actions/runs?per_page=100&page=${page}&created=>=${since.slice(0, 10)}`)).workflow_runs || []).length; page++) runs.push(...list);
 for (const r of runs) {
