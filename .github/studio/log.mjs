@@ -31,7 +31,8 @@ const branches = (await get(`/repos/${REPO}/branches?per_page=100`)).map(b => b.
   .filter(n => n === 'main' || /^(claude|combi|honi|buzzi)\//.test(n));
 const seen = new Set();
 for (const b of branches) {
-  for (const c of await get(`/repos/${REPO}/commits?sha=${encodeURIComponent(b)}&since=${since}&per_page=100`)) {
+  for (let page = 1, list; page <= 10 && (list = await get(`/repos/${REPO}/commits?sha=${encodeURIComponent(b)}&since=${since}&per_page=100&page=${page}`)).length; page++)
+  for (const c of list) {
     if (seen.has(c.sha) || (c.parents || []).length > 1) continue;
     seen.add(c.sha);
     const who = ((c.commit && c.commit.author && c.commit.author.name) || '').toLowerCase();
@@ -43,7 +44,8 @@ for (const b of branches) {
 }
 
 // workflow runs: checks and releases
-const runs = (await get(`/repos/${REPO}/actions/runs?per_page=100&created=>=${since.slice(0, 10)}`)).workflow_runs || [];
+const runs = [];
+for (let page = 1, list; page <= 10 && (list = (await get(`/repos/${REPO}/actions/runs?per_page=100&page=${page}&created=>=${since.slice(0, 10)}`)).workflow_runs || []).length; page++) runs.push(...list);
 for (const r of runs) {
   if (r.status !== 'completed') continue;
   if (r.name === 'CI') { if (r.conclusion === 'success') add(r.updated_at, 'pass'); else if (r.conclusion === 'failure') add(r.updated_at, 'reject'); }
