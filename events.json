@@ -2,22 +2,40 @@
  "v": 1,
  "days": [
   {
-   "d": "2026-10-10",
-   "work": 22,
-   "pass": 0,
+   "d": "2026-10-08",
+   "work": 5,
+   "pass": 5,
    "reject": 0,
-   "ship": 0,
+   "ship": 1,
    "copy": 0,
-   "approve": 0
+   "approve": 3
+  },
+  {
+   "d": "2026-10-09",
+   "work": 67,
+   "pass": 50,
+   "reject": 15,
+   "ship": 9,
+   "copy": 0,
+   "approve": 1
+  },
+  {
+   "d": "2026-10-10",
+   "work": 26,
+   "pass": 19,
+   "reject": 7,
+   "ship": 5,
+   "copy": 0,
+   "approve": 4
   },
   {
    "d": "2026-10-11",
    "work": 48,
-   "pass": 0,
-   "reject": 0,
-   "ship": 0,
+   "pass": 11,
+   "reject": 7,
+   "ship": 6,
    "copy": 0,
-   "approve": 0
+   "approve": 2
   },
   {
    "d": "2026-10-12",
@@ -31,6 +49,15 @@
   {
    "d": "2026-10-13",
    "work": 25,
+   "pass": 12,
+   "reject": 4,
+   "ship": 8,
+   "copy": 0,
+   "approve": 5
+  },
+  {
+   "d": "2026-10-16",
+   "work": 2,
    "pass": 0,
    "reject": 0,
    "ship": 0,
@@ -39,16 +66,16 @@
   },
   {
    "d": "2026-10-18",
-   "work": 0,
-   "pass": 2,
-   "reject": 0,
-   "ship": 2,
+   "work": 93,
+   "pass": 8,
+   "reject": 7,
+   "ship": 10,
    "copy": 0,
    "approve": 0
   },
   {
    "d": "2026-10-19",
-   "work": 0,
+   "work": 20,
    "pass": 4,
    "reject": 5,
    "ship": 3,
@@ -57,7 +84,7 @@
   },
   {
    "d": "2026-10-20",
-   "work": 48,
+   "work": 49,
    "pass": 18,
    "reject": 4,
    "ship": 7,
@@ -67,7 +94,7 @@
   {
    "d": "2026-10-21",
    "work": 56,
-   "pass": 20,
+   "pass": 21,
    "reject": 5,
    "ship": 3,
    "copy": 2,
