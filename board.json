@@ -1,0 +1,22 @@
+{
+ "v": 1,
+ "project": "JP",
+ "title": "바디어리 일본 출시",
+ "tickets": [
+  { "id": "JP-1", "title": "일본 앱스토어 문구", "owner": "honi", "stage": "approve" },
+  { "id": "JP-2", "title": "앱 안 문장 번역", "owner": "honi", "stage": "todo" },
+  { "id": "JP-3", "title": "원어민 검수", "owner": "bibi", "stage": "todo" },
+  { "id": "JP-4", "title": "앱 이름 상표 확인", "owner": "bibi", "stage": "todo" },
+  { "id": "JP-5", "title": "앱에 일본어 연결", "owner": "combi", "stage": "later" },
+  { "id": "JP-6", "title": "날짜·요일 일본식 설정", "owner": "combi", "stage": "later" },
+  { "id": "JP-7", "title": "일본어 스크린샷", "owner": "combi", "stage": "later" },
+  { "id": "JP-8", "title": "일본 판매 켜고 심사 제출", "owner": "bibi", "stage": "later" }
+ ],
+ "flow": [
+  ["2026-10-21", "JP-1", "honi", "submit"],
+  ["2026-10-21", "JP-1", "buzzi", "pass"],
+  ["2026-10-21", "JP-1", "bibi", "reject"],
+  ["2026-10-21", "JP-1", "honi", "submit"],
+  ["2026-10-21", "JP-1", "buzzi", "pass"]
+ ]
+}

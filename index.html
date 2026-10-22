@@ -32,6 +32,11 @@ canvas{display:block;width:100%;height:100%;image-rendering:pixelated;image-rend
 .log .ln b{font-weight:600}
 .log .sq{width:6px;height:6px}
 .log .empty{color:#8A6E72}
+.log{max-height:58%;overflow:auto}
+.log .tk{display:grid;grid-template-columns:8px 34px 1fr auto;align-items:center;column-gap:6px;white-space:nowrap}
+.log .tk .tt{overflow:hidden;text-overflow:ellipsis}
+.log .tk .stg{color:#8A6E72}
+.log .fl{margin-top:5px;padding-top:5px;border-top:1px dashed #D9BFC4}
 .tag{position:absolute;transform:translate(-50%,-100%);padding:3px 7px;border-radius:7px;border:2px solid var(--ink);background:#FFFBFA;color:var(--ink);
   font:600 10px/1.2 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;white-space:nowrap;pointer-events:none;transition:opacity .15s}
 .tag span{font-weight:400;color:#8A6E72}
@@ -43,7 +48,7 @@ canvas{display:block;width:100%;height:100%;image-rendering:pixelated;image-rend
 <div class="frame">
   <canvas id="scene" width="256" height="448" role="img" aria-label="Blush Valley 픽셀 작업실. Bibi와 Combi, Buzzi, Honi가 일하고 걸어 다니는 모습"></canvas>
   <div class="tag" id="tag" hidden></div>
-  <div class="log" id="log" hidden aria-live="polite"><div class="st"><span id="src">studio.log</span><span id="clk"></span></div><div id="lines"><div class="empty">아직 기록이 없어요</div></div></div>
+  <div class="log" id="log" hidden aria-live="polite"><div class="st"><span id="src">studio.log</span><span id="clk"></span></div><div id="tickets"></div><div class="fl" id="lines"><div class="empty">아직 기록이 없어요</div></div></div>
   <button class="tog" id="tog" type="button" aria-label="작업 기록 보기" aria-expanded="false"><span class="led"></span>log</button>
 </div>
 
@@ -56,13 +61,16 @@ canvas{display:block;width:100%;height:100%;image-rendering:pixelated;image-rend
   const DEBUG=Q.has('debug');
   const reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const load=src=>new Promise(r=>{const i=new Image();i.onload=()=>r(i);i.onerror=()=>r(null);i.src=src;});
+  const json=src=>fetch(src,{cache:'no-store'}).then(r=>r.ok?r.json():null).catch(()=>null);
   const R=(x,y,w,h,c)=>{ctx.fillStyle=c;ctx.fillRect(x,y,w,h);};
   const rnd=(a,b)=>a+Math.random()*(b-a);
+  const rndInt=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
   const pick=a=>a[Math.floor(Math.random()*a.length)];
 
   const kst=()=>{ try{ const p=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',hour12:false}).formatToParts(new Date());
     const g=k=>p.find(x=>x.type===k).value; return {day:g('year')+'-'+g('month')+'-'+g('day'),hour:(+g('hour'))%24}; }catch(e){ const d=new Date(); return {day:d.toISOString().slice(0,10),hour:d.getHours()}; } };
   const isNight=()=>{ const h=kst().hour; return h>=19 || h<9; };
+  const recent=d=>/^\d{4}-\d{2}-\d{2}$/.test(d) && Date.parse(kst().day)-Date.parse(d)<=2*864e5;
 
   const CELL=2, GW=W/CELL, GH=H/CELL;
   const BLOCK=[
@@ -70,7 +78,7 @@ canvas{display:block;width:100%;height:100%;image-rendering:pixelated;image-rend
     [18,86,75,172],[78,96,150,154],[101,166,115,178],                     // robot gantry, lab bench, stool
     [158,80,166,210],[158,204,191,210],[214,204,256,210],                 // glass room, door 191-214
     [164,82,181,108],[182,120,242,134],[220,130,244,148],[232,82,254,108],// room: plant, desk, armchair, shelf
-    [0,238,20,264],[23,264,150,288],[164,296,186,314],                    // plant, work desk, tripod
+    [0,238,20,264],[23,264,150,288],[164,296,186,314],[196,302,206,316],  // plant, work desk, tripod, honi's stand
     [12,336,98,368],[32,382,80,404],[108,355,114,360],                    // sofa, coffee table, floor lamp base
     [124,327,160,388],[158,348,174,361],[168,352,232,400],[232,318,256,380] // bookcase, plant, kitchen counter, fridge
   ];
@@ -109,70 +117,135 @@ canvas{display:block;width:100%;height:100%;image-rendering:pixelated;image-rend
   }
 
   const P={
-    combiSeat:[54,262,'down'], buzziSeat:[114,262,'down'], byCombi:[80,256,'left'],
+    combiSeat:[54,262,'down'], buzziSeat:[114,262,'down'], byCombi:[80,256,'left'], byBuzzi:[136,254,'left'],
     lab:[75,182,'down'], solder:[106,182,'up'], robot:[50,180,'up'], labWalk:[130,186,'left'],
-    roomSeat:[208,119,'down'], byBibi:[202,150,'up'], roomDoor:[202,214,'up'],
-    photo:[222,316,'down'], shoot:[222,316,'left'], backdrop:[238,300,'down'],
+    roomSeat:[208,119,'down'], byBibi:[196,148,'up'], roomDoor:[202,214,'up'], archive:[238,112,'up'], window:[198,100,'up'],
+    photo:[222,316,'down'], shoot:[222,316,'left'], backdrop:[238,300,'down'], byHoni:[212,322,'left'],
     coffee:[184,406,'up'], fridge:[244,388,'up'], shelf:[142,394,'up'],
-    sofaFront:[56,376,'up'], sofaSit:[56,356,'down'], window:[198,100,'up']
+    sofaFront:[56,376,'up'], sofaSit:[56,356,'down']
   };
   const OCCL=[ {x0:22,x1:150,y0:228,y1:263,clip:262}, {x0:182,x1:242,y0:100,y1:122,clip:112}, {x0:12,x1:98,y0:340,y1:360,clip:352} ];
+  const ZONE={ floor:[8,214,248,436], lab:[22,176,154,204], room:[170,140,246,200] };
+  const HOME={ combi:'combiSeat', buzzi:'buzziSeat', honi:'photo' };
+  const DROP={ combi:'byCombi', buzzi:'byBuzzi', honi:'byHoni', bibi:'byBibi' };
+  const TRAY={ combi:[26,256], buzzi:[141,256], honi:[197,300], bibi:[186,108] };
 
   const ROW={down:0,left:1,right:2,up:3};
   const ROLE={bibi:'judge',combi:'making',buzzi:'questioning',honi:'showing'};
-  function Char(name,place){ const [x,y,f]=P[place]; return {name,x,y,dir:f,plan:[],step:null,t:0,walkT:0,path:null,emote:null,fx:null,fxT:0,carry:null,blinkAt:0,where:place}; }
+  const COLOR={combi:'#6F8FBF',buzzi:'#AD4A5B',honi:'#D9A441',bibi:'#E07A98'};
+  function Char(name,place){ const [x,y,f]=P[place]; return {name,x,y,dir:f,plan:[],step:null,t:0,walkT:0,path:null,emote:null,fx:null,fxT:0,carry:null,blinkAt:0,where:place,
+    busy:false, wanderCount:0, wanderLimit:rndInt(3,6), bubble:null}; }
   const C={ combi:Char('combi','combiSeat'), buzzi:Char('buzzi','buzziSeat'), honi:Char('honi','photo'), bibi:Char('bibi','lab') };
 
+  // plan steps: {go:place} | {go:[x,y,face]} | {do:fx, s:sec, emote, face, carry, on, end} | {sit:place}
   const go=p=>({go:p}), act=(fx,s,o={})=>Object.assign({do:fx,s},o);
+  const at=(p,fx,s,o)=>[go(p),act(fx,s,o)];
+
+  // Idle rhythm after Pixel Agents (MIT, Pablo De Lucca): wander a few times, then go back to the seat and rest.
+  function randomSpot(zone){
+    const [x0,y0,x1,y1]=ZONE[zone];
+    for(let i=0;i<40;i++){ const x=rnd(x0,x1), y=rnd(y0,y1); if(free(Math.floor(x/CELL),Math.floor(y/CELL))) return [Math.round(x),Math.round(y),pick(['down','left','right'])]; }
+    return null;
+  }
   function idlePlan(ch,N){
-    const at=(p,fx,s,o)=>[go(p),act(fx,s,o)];
-    switch(ch.name){
-      case 'combi': return pick([ at('combiSeat','type',rnd(6,10)), at('combiSeat','type',rnd(6,10)), at('combiSeat','type',rnd(5,8)),
-        [go('coffee'),act(null,2.4,{fx:'coffee'}),go('combiSeat'),act('type',4)], [go('sofaFront'),{sit:'sofaSit'},act('rest',rnd(5,8)),go('combiSeat')] ]);
-      case 'buzzi': return pick([ at('buzziSeat','type',rnd(6,9)), at('buzziSeat','type',rnd(5,8)),
-        [go('shelf'),act('read',rnd(3,5)),go('buzziSeat')], [go('byCombi'),act(null,2,{face:'left'}),go('buzziSeat')] ]);
-      case 'honi': return pick([ at('photo',null,rnd(3,5)), [go('backdrop'),act(null,2,{emote:'happy'})], [go('coffee'),act('coffee',2.6),go('photo')], [go('fridge'),act(null,1.6),go('photo')] ]);
-      case 'bibi': return N ? pick([ at('roomSeat','type',rnd(6,10)), at('roomSeat',null,rnd(4,6)), [go('window'),act(null,3),go('roomSeat')] ])
-                            : pick([ at('solder','solder',rnd(4,7)), at('robot',null,rnd(3,5),{emote:'happy'}), at('lab',null,rnd(2,4)), [go('labWalk'),act(null,1.5),go('solder')] ]);
+    const zone = ch.name==='bibi' ? (N?'room':'lab') : 'floor';
+    const home = ch.name==='bibi' ? (N?'roomSeat':'solder') : HOME[ch.name];
+    if(ch.wanderCount>=ch.wanderLimit){
+      ch.wanderCount=0; ch.wanderLimit=rndInt(3,6);
+      const restFx = ch.name==='combi' ? 'type' : ch.name==='bibi' ? (N?'type':'solder') : null;
+      return at(home,restFx,rnd(12,24));
     }
+    ch.wanderCount++;
+    const errands={
+      combi:[[go('coffee'),act('coffee',2.4)], [go('sofaFront'),{sit:'sofaSit'},act('rest',rnd(5,8))]],
+      buzzi:[[go('shelf'),act('read',rnd(3,5))], [go('byCombi'),act(null,2,{face:'left'})]],
+      honi:[[go('backdrop'),act(null,2,{emote:'happy'})], [go('coffee'),act('coffee',2.6)], [go('fridge'),act(null,1.6)]],
+      bibi:N?[[go('window'),act(null,3)], [go('archive'),act('read',2.4)]]:[[go('robot'),act(null,rnd(2,4),{emote:'happy'})], [go('labWalk'),act(null,1.5)]]
+    }[ch.name];
+    if(Math.random()<.4) return pick(errands).slice();
+    const s=randomSpot(zone); return s ? [go(s),act(null,rnd(2,6))] : [act(null,2)];
   }
 
-  const KIND={work:'combi',reject:'buzzi',pass:'buzzi',ship:'bibi',copy:'honi',approve:'bibi',read:null,wait:null};
-  function signal(who,what,N){
-    if(!(what in KIND)) return false;
-    const w = KIND[what] || who; const ch=C[w]; if(!ch) return false;
-    let plan;
-    if(what==='work') plan=[go('combiSeat'),act('type',3),act('honey',2.2,{emote:'happy'}),act('type',2)];
-    if(what==='reject'){ plan=[go('byCombi'),act('reject',2.6,{emote:'surprised',face:'left'}),go('buzziSeat'),act('type',2)];
-      react('combi',[go('combiSeat'),act(null,2.8,{emote:'surprised',face:'right'}),act('type',3)]); }
-    if(what==='pass') plan = N ? [go('buzziSeat'),act('pass',2,{emote:'happy'}),go('roomDoor'),go('byBibi'),act('hand',2.6,{face:'up',carry:'paper'}),go('buzziSeat')]
-                               : [go('buzziSeat'),act('pass',2.6,{emote:'happy'})];
-    if(what==='approve') plan=[go(N?'roomSeat':'lab'),act('approve',2.6)];
-    if(what==='ship'){ plan=[go(N?'roomSeat':'lab'),act('ship',3,{emote:'happy'})];
-      ['combi','buzzi','honi'].forEach(n=>react(n,[act(null,2.4,{emote:'happy'})])); }
-    if(what==='copy') plan=[go('shoot'),act('flash',2.6,{emote:'happy',face:'left'}),act(null,1)];
-    if(what==='read') plan=[go('shelf'),act('read',3)];
-    if(what==='wait') plan=[act('ask',3)];
-    interrupt(ch,plan); return true;
+  // ---- tickets: board.json is the company's real to-do list for the Japan launch
+  const STAGES=['todo','doing','check','approve','done'];
+  const STAGE_KO={todo:'할 일',doing:'진행',check:'검사',approve:'결재 대기',done:'완료',later:'출시 후'};
+  const ACTS={submit:['doing','check'], pass:['check','approve'], reject:null, approve:['approve','done'], done:['doing','done']};
+  let board=null, flow=[], step=0, holdUntil=0, rewind=false, bugs={};
+  const trays={combi:[],buzzi:[],honi:[],bibi:[]};
+  function stageBefore(e){ const [,,who,a]=e; if(a==='reject') return who==='bibi'?'approve':'check'; return (ACTS[a]||['doing'])[0]; }
+  function resetBoard(){
+    if(!board) return;
+    board.tickets.forEach(t=>t.live=t.stage);
+    const first={}; flow.forEach(e=>{ if(!(e[1] in first)) first[e[1]]=e; });
+    board.tickets.forEach(t=>{ if(first[t.id]) t.live=stageBefore(first[t.id]); });
+    for(const k in trays) trays[k]=[];
+    board.tickets.forEach(t=>{ const h=holderOf(t); if(h) trays[h].push(t.id); });
+    bugs={}; step=0; Object.values(C).forEach(c=>c.hooks=0);
   }
-  function interrupt(ch,plan){ ch.plan=plan.slice(); ch.step=null; ch.path=null; ch.fx=null; ch.emote=null; ch.carry=null; ch.busy=true; }
-  function react(n,plan){ const ch=C[n]; if(ch && !ch.busy) interrupt(ch,plan); }
+  const holderOf=t=>t.live==='doing'?t.owner:t.live==='check'?'buzzi':t.live==='approve'?'bibi':null;
+  const ticket=id=>board.tickets.find(t=>t.id===id);
+  const take=(who,id)=>{ const i=trays[who].indexOf(id); if(i>=0) trays[who].splice(i,1); };
+  const put=(who,id)=>{ if(!trays[who].includes(id)) trays[who].push(id); };
+
+  function deliver(from,to,id,mark,after){
+    return [act('pick',.6,{on:()=>take(from,id),carry:'paper'}), go(DROP[to]), act('drop',.8,{carry:'paper',end:()=>{ put(to,id); after&&after(); }})];
+  }
+  function runFlow(e,N){
+    const [,id,who,a]=e, t=ticket(id); if(!t) return true;
+    const ch=C[who];
+    if(who==='bibi' && !N) return false;           // decisions wait for the evening
+    let plan=[];
+    const home = who==='bibi' ? 'roomSeat' : HOME[who];
+    if(a==='submit'){
+      plan=[go(home), act(who==='honi'?'tablet':'type',3), ...deliver(who,'buzzi',id,null,()=>{ t.live='check'; logFlow(id,who,'→ buzzi'); ch.bubble={kind:'wait',until:performance.now()+3500}; }), go(home)];
+    } else if(a==='pass'){
+      const to = N ? [go('roomDoor')] : [];
+      plan=[go('buzziSeat'), act('read',3), act('pass',1.6,{emote:'happy',end:()=>{ delete bugs[id]; }}),
+        act('pick',.6,{on:()=>take('buzzi',id),carry:'paper'}), ...to, go('byBibi'),
+        act('drop',.8,{carry:'paper',end:()=>{ put('bibi',id); t.live='approve'; logFlow(id,'buzzi','✓ → bibi'); }}), go('buzziSeat')];
+    } else if(a==='reject' && who==='buzzi'){
+      plan=[go('buzziSeat'), act('read',3), act('reject',2,{emote:'surprised'}), ...deliver('buzzi',t.owner,id,'red',()=>{ t.live='doing'; bugs[id]=t.owner; logFlow(id,'buzzi','✕ → '+t.owner); }), go('buzziSeat')];
+      react(t.owner,[act(null,2.4,{emote:'surprised'})]);
+    } else if(a==='reject' && who==='bibi'){
+      plan=[go('roomSeat'), act('read',2.6), act('reject',2,{face:'down'}), act('pick',.6,{on:()=>take('bibi',id),carry:'paper'}), go('roomDoor'), go(DROP[t.owner]),
+        act('drop',.8,{carry:'paper',end:()=>{ put(t.owner,id); t.live='doing'; logFlow(id,'bibi','✕ → '+t.owner); }}), go('roomDoor'), go('roomSeat')];
+    } else if(a==='approve'){
+      plan=[go('roomSeat'), act('read',2.6), act('approve',1.8,{emote:'happy'}), act('pick',.6,{on:()=>take('bibi',id),carry:'paper'}), go('archive'),
+        act('drop',.8,{carry:'paper',end:()=>{ t.live='done'; logFlow(id,'bibi','✓ 완료'); }}), go('roomSeat')];
+      ['combi','buzzi','honi'].forEach(n=>react(n,[act(null,2.4,{emote:'happy'})]));
+    } else return true;
+    assign(ch,plan); return true;
+  }
+  function assign(ch,plan){ ch.plan=plan.slice(); ch.hooks=plan.filter(s=>s.end).length; ch.step=null; ch.path=null; ch.fx=null; ch.emote=null; ch.carry=null; ch.busy=true; ch.sitFrom&&unsit(ch); }
+  function react(n,plan){ const ch=C[n]; if(ch && !ch.busy) assign(ch,plan); }
+  function unsit(ch){ const [x,y]=P[ch.sitFrom]; ch.x=x; ch.y=y; ch.sitFrom=null; }
+
+  // daily commit counts keep Combi busy on the app itself between Japan tickets
+  const KINDS=['work','pass','reject','ship','copy','approve'];
+  function dayRow(log){
+    if(!log || log.v!==1 || !Array.isArray(log.days)) return null;
+    const row=log.days.filter(r=>r && recent(r.d)).sort((a,b)=>a.d<b.d?-1:1).pop();
+    if(!row) return null;
+    const S={d:row.d}; KINDS.forEach(k=>{ const n=+row[k]; S[k]=Number.isFinite(n)&&n>0?Math.min(99,Math.floor(n)):0; });
+    return S;
+  }
 
   const SPEED=18;
   function nextStep(ch,N){
     if(!ch.plan.length){ ch.busy=false; ch.plan=idlePlan(ch,N); }
     ch.step=ch.plan.shift(); ch.t=0; ch.fx=null; ch.emote=null;
     const s=ch.step;
-    if(s.go && ch.sitFrom){ const [fx,fy]=P[ch.sitFrom]; ch.x=fx; ch.y=fy; ch.sitFrom=null; }
-    if(s.go){ const [x,y]=P[s.go]; ch.path=findPath(ch.x,ch.y,x,y); ch.where=s.go; }
+    if(s.go && ch.sitFrom) unsit(ch);
+    if(s.go){ const [x,y]=Array.isArray(s.go)?s.go:P[s.go]; ch.path=findPath(ch.x,ch.y,x,y); ch.where=s.go; }
     if(s.sit){ ch.sitFrom=ch.where; const [x,y,f]=P[s.sit]; ch.x=x; ch.y=y; ch.dir=f; ch.where=s.sit; ch.step={do:null,s:.01}; }
-    if(s.do!==undefined){ if(s.face) ch.dir=s.face; else if(P[ch.where]) ch.dir=P[ch.where][2]; ch.fx=s.do||s.fx||null; ch.emote=s.emote||null; ch.carry=s.carry||null; }
+    if(s.do!==undefined){ const p=Array.isArray(ch.where)?ch.where:P[ch.where]; if(s.face) ch.dir=s.face; else if(p) ch.dir=p[2];
+      ch.fx=s.do||null; ch.emote=s.emote||null; ch.carry=s.carry||null; if(s.on) s.on(); }
   }
   function update(ch,dt,N){
     if(!ch.step) nextStep(ch,N);
     const s=ch.step;
     if(s.go){
-      if(reduce){ const [x,y]=P[s.go]; ch.x=x; ch.y=y; ch.path=null; }
+      if(reduce){ const [x,y]=Array.isArray(s.go)?s.go:P[s.go]; ch.x=x; ch.y=y; ch.path=null; }
       while(ch.path && ch.path.length){
         const [tx,ty]=ch.path[0], dx=tx-ch.x, dy=ty-ch.y, d=Math.hypot(dx,dy);
         if(d<.5){ ch.x=tx; ch.y=ty; ch.path.shift(); continue; }
@@ -183,9 +256,10 @@ canvas{display:block;width:100%;height:100%;image-rendering:pixelated;image-rend
       ch.step=null; return;
     }
     ch.t+=dt; ch.fxT=ch.t;
-    if(ch.t>=s.s) ch.step=null;
+    if(ch.t>=s.s){ if(s.end){ s.end(); ch.hooks=Math.max(0,(ch.hooks||0)-1); } ch.step=null; }
   }
 
+  // ---- drawing
   function frameCol(ch,now){
     if(ch.step && ch.step.go && !reduce) return Math.floor(ch.walkT*8)%4;
     if(ch.emote==='happy') return 5;
@@ -195,15 +269,65 @@ canvas{display:block;width:100%;height:100%;image-rendering:pixelated;image-rend
     if(now>ch.blinkAt && ch.dir!=='up') return 4;
     return 0;
   }
-  function honey(x,y){R(x,y+2,7,7,'#4A2E2A');R(x+1,y+3,5,5,'#F2BF6A');R(x+1,y,5,3,'#4A2E2A');R(x+2,y+1,3,1,'#F7C6D2');R(x+2,y+4,1,2,'#FFE7B0');}
-  function bubble(x,y,col){R(x,y,11,8,'#4A2E2A');R(x+1,y+1,9,6,'#FFFFFF');R(x+4,y+2,3,3,col);R(x+4,y+8,2,2,'#4A2E2A');}
-  function check(x,y){R(x,y,11,8,'#4A2E2A');R(x+1,y+1,9,6,'#FFFFFF');[[3,4],[4,5],[5,4],[6,3],[7,2]].forEach(([a,b])=>R(x+a,y+b,1,1,'#3E9B63'));}
-  function ask(x,y){R(x,y,11,9,'#4A2E2A');R(x+1,y+1,9,7,'#FFFFFF');R(x+4,y+2,3,1,'#A8485F');R(x+6,y+3,1,1,'#A8485F');R(x+5,y+4,1,1,'#A8485F');R(x+5,y+6,1,1,'#A8485F');R(x+4,y+9,2,2,'#4A2E2A');}
-  function paper(x,y){R(x,y,8,10,'#4A2E2A');R(x+1,y+1,6,8,'#FFFFFF');R(x+2,y+3,4,1,'#C5D5E6');R(x+2,y+5,3,1,'#C5D5E6');}
-  function cup(x,y){R(x,y,6,6,'#4A2E2A');R(x+1,y+1,4,4,'#FFFFFF');R(x+1,y+1,4,1,'#8F6447');R(x+6,y+2,1,2,'#4A2E2A');}
-  function book(x,y){R(x,y,10,7,'#4A2E2A');R(x+1,y+1,4,5,'#F7C6D2');R(x+5,y+1,4,5,'#C5D5E6');}
+  const INK='#4A2E2A';
+  function honey(x,y){R(x,y+2,7,7,INK);R(x+1,y+3,5,5,'#F2BF6A');R(x+1,y,5,3,INK);R(x+2,y+1,3,1,'#F7C6D2');R(x+2,y+4,1,2,'#FFE7B0');}
+  function bubbleBox(x,y,w,h){R(x,y,w,h,INK);R(x+1,y+1,w-2,h-2,'#FFFFFF');R(x+4,y+h,2,2,INK);}
+  function check(x,y){bubbleBox(x,y,11,8);[[3,4],[4,5],[5,4],[6,3],[7,2]].forEach(([a,b])=>R(x+a,y+b,1,1,'#3E9B63'));}
+  function cross(x,y){bubbleBox(x,y,11,8);[[3,2],[4,3],[5,4],[6,5],[7,6],[7,2],[6,3],[4,5],[3,6]].forEach(([a,b])=>R(x+a,y+b,1,1,'#D9534F'));}
+  function dots(x,y,t){bubbleBox(x,y,11,7);for(let i=0;i<3;i++) if(Math.floor(t*3)%4>i) R(x+2+i*3,y+3,1,1,INK);}
+  function heart(x,y){bubbleBox(x,y,11,8);[[3,2],[4,2],[6,2],[7,2],[2,3],[3,3],[4,3],[5,3],[6,3],[7,3],[8,3],[3,4],[4,4],[5,4],[6,4],[7,4],[4,5],[5,5],[6,5],[5,6]].forEach(([a,b])=>R(x+a,y+b,1,1,'#E07A98'));}
+  function paper(x,y,red){R(x,y,8,10,INK);R(x+1,y+1,6,8,'#FFFFFF');R(x+2,y+3,4,1,'#C5D5E6');R(x+2,y+5,3,1,'#C5D5E6');if(red)R(x+5,y+1,2,2,'#D9534F');}
+  function cup(x,y){R(x,y,6,6,INK);R(x+1,y+1,4,4,'#FFFFFF');R(x+1,y+1,4,1,'#8F6447');R(x+6,y+2,1,2,INK);}
+  function book(x,y){R(x,y,10,7,INK);R(x+1,y+1,4,5,'#F7C6D2');R(x+5,y+1,4,5,'#C5D5E6');}
+  function tablet(x,y){R(x,y,8,6,INK);R(x+1,y+1,6,4,'#DCE8F5');R(x+2,y+2,3,1,'#9DB8DA');}
   function zz(x,y,t){ const k=Math.floor((t*3)%6); ctx.globalAlpha=1-k/6; R(x,y-k,3,1,'#9A88B8');R(x+1,y+1-k,1,1,'#9A88B8');R(x,y+2-k,3,1,'#9A88B8'); ctx.globalAlpha=1; }
   function shadow(x,y){ ctx.globalAlpha=.22; ctx.fillStyle='#3C1E1E'; ctx.beginPath(); ctx.ellipse(x,y,6,1.8,0,0,Math.PI*2); ctx.fill(); ctx.globalAlpha=1; }
+  function bug(x,y,t){ const k=reduce?0:Math.round(Math.sin(t*3+x)*3); R(x+k,y,3,2,'#3B2A30'); R(x+k-1,y+1,1,1,'#3B2A30'); R(x+k+3,y+1,1,1,'#3B2A30'); R(x+k+1,y-1,1,1,'#D9534F'); }
+
+  function drawTray(who,t){
+    const [x,y]=TRAY[who], n=trays[who].length;
+    R(x,y+6,10,2,INK); R(x+1,y+5,8,1,'#C9A27A');
+    for(let i=0;i<Math.min(n,6);i++){ const id=trays[who][i]; R(x+1,y+4-i,8,1,'#FFFFFF'); R(x+1,y+5-i,8,1,'#D8CFC6'); if(bugs[id]) R(x+7,y+4-i,1,1,'#D9534F'); }
+  }
+  function drawStand(){ const x=196,y=302; R(x+1,y+6,1,10,INK); R(x+8,y+6,1,10,INK); R(x,y+5,10,2,INK); }
+
+  // kanban on the wall: a cork board, one card per ticket, coloured by owner
+  function drawBoard(t){
+    if(!board) return;
+    const x=95,y=35,w=66,h=23;
+    R(x+1,y+h,w,1,'rgba(60,30,30,.25)');
+    R(x,y,w,h,INK); R(x+1,y+1,w-2,h-2,'#D7B48A');
+    for(let i=0;i<14;i++) R(x+3+((i*37)%(w-6)),y+3+((i*11)%(h-6)),1,1,'#C49C70');
+    const pin=['#B9A99A','#6F8FBF','#AD4A5B','#E07A98','#3E9B63'];
+    STAGES.forEach((s,i)=>{ const cx=x+2+i*13;
+      if(i) R(cx-1,y+3,1,h-6,'#C49C70');
+      R(cx+4,y+2,3,2,pin[i]); R(cx+5,y+2,1,1,'#FFFFFF');
+      board.tickets.filter(tk=>(tk.live==='later'?'todo':tk.live)===s).forEach((tk,j)=>{
+        const px=cx+(j%2)*6, py=y+6+Math.floor(j/2)*4, c=tk.live==='later'?'#EFE6DA':'#FFF8EC';
+        R(px,py+3,5,1,'#B08860'); R(px,py,5,3,c); R(px,py,5,1,tk.live==='later'?'#CFC3B5':COLOR[tk.owner]);
+        if(bugs[tk.id]) R(px+3,py+1,1,1,'#D9534F'); }); });
+    R(x-9,y+5,8,6,INK); R(x-8,y+6,6,4,'#FFFFFF'); R(x-6,y+7,2,2,'#D0343F');      // JP flag
+    const done=board.tickets.filter(tk=>tk.live==='done').length;
+    R(x+2,y+h-3,w-4,1,'#B08860'); R(x+2,y+h-3,Math.round((w-4)*done/board.tickets.length),1,'#3E9B63');
+  }
+
+  // spawn effect after Pixel Agents' matrix rain (MIT, Pablo De Lucca), adapted to sprite sheets
+  const MX={dur:.6, trail:6, seeds:Array.from({length:16},()=>Math.random())};
+  const flickerVisible=(col,row,time)=>(((col*7+row*13+Math.floor(time*30)*31)&0xff)<180);
+  function matrixDraw(img,ch,col,progress,spawn,time){
+    const sx=col*16, sy=ROW[ch.dir]*37, ax=Math.round(ch.x-8), ay=Math.round(ch.y-36);
+    const sweep=37+MX.trail;
+    for(let c=0;c<16;c++){
+      const cp=Math.max(0,Math.min(1,(progress-MX.seeds[c]*.3)/.7)), head=cp*sweep;
+      for(let r=0;r<37;r++){
+        const d=head-r, visible = spawn ? d>=MX.trail : d<0;
+        if(visible){ ctx.drawImage(img,sx+c,sy+r,1,1,ax+c,ay+r,1,1); continue; }
+        if(d>=0 && d<1){ R(ax+c,ay+r,1,1,'#ccffcc'); continue; }
+        if(d>=1 && d<MX.trail && flickerVisible(c,r,time)){ ctx.globalAlpha=(1-d/MX.trail)*.6; R(ax+c,ay+r,1,1,'#46d16a'); ctx.globalAlpha=1;
+          if(spawn) ctx.drawImage(img,sx+c,sy+r,1,1,ax+c,ay+r,1,1); }
+      }
+    }
+  }
 
   function drawChar(img,ch,now,t){
     const ax=Math.round(ch.x-8), ay=Math.round(ch.y-36);
@@ -211,79 +335,95 @@ canvas{display:block;width:100%;height:100%;image-rendering:pixelated;image-rend
     const bob = ch.fx==='type' && !reduce && Math.floor(t*6)%2===0 ? 1 : 0;
     if(!occ) shadow(ch.x,ch.y);
     if(img){ ctx.save(); if(occ){ctx.beginPath();ctx.rect(0,0,W,occ.clip);ctx.clip();}
-      ctx.drawImage(img,frameCol(ch,now)*16,ROW[ch.dir]*37,16,37,ax,ay+bob,16,37); ctx.restore(); }
+      if(ch.mx){ matrixDraw(img,ch,0,Math.min(1,ch.mx.t/MX.dur),ch.mx.spawn,ch.mx.t); }
+      else ctx.drawImage(img,frameCol(ch,now)*16,ROW[ch.dir]*37,16,37,ax,ay+bob,16,37);
+      ctx.restore(); }
     const f=ch.fx, k=ch.fxT;
     if(f==='honey') honey(ax+4, ay-12-Math.round(Math.min(1,k*2)*3));
-    if(f==='reject') bubble(ax+(ch.dir==='left'?-6:12), ay-12, '#D9534F');
-    if(f==='pass') check(ax+12, ay-12);
-    if(f==='hand' && k<2) paper(ax+4, ay-12);
+    if(f==='reject') cross(ax+12, ay-12);
+    if(f==='pass'||f==='approve') check(ax+12, ay-12);
     if(f==='coffee') cup(ax+5, ay-9);
     if(f==='read') book(ax+3, ay-10);
+    if(f==='tablet') tablet(ax+4, ay+12);
     if(f==='solder' && Math.floor(t*8)%2===0) R(ax+8, ay-2, 1, 1, '#FFE08A');
-    if(f==='approve') check(ax+3, ay-13);
-    if(f==='ask') ask(ax+3, ay-14-(Math.floor(t*3)%2));
     if(f==='rest') zz(ax+12, ay-4, t);
-    if(f==='flash'){ const p=k%1.3; if(p<.25){ ctx.globalAlpha=1-p*4; R(176,280,10,3,'#FFFFFF'); R(179,277,4,9,'#FFFFFF'); R(ax-2,ay,20,37,'#FFF6E0'); ctx.globalAlpha=1; } }
-    if(f==='ship'){ honey(ax+4, ay-12-Math.round(Math.min(1,k*1.5)*4)); if(!reduce && Math.floor(t*4)%2===0){ R(ax-3,ay-6,2,2,'#F28BA8'); R(ax+17,ay-9,2,2,'#F2BF6A'); } }
-    if(ch.carry==='paper' && ch.step && ch.step.go) paper(ax+12, ay+16);
-
+    if(f==='flash'){ const p=k%1.3; if(p<.25){ ctx.globalAlpha=1-p*4; R(176,280,10,3,'#FFFFFF'); R(179,277,4,9,'#FFFFFF'); ctx.globalAlpha=1; } }
+    if(ch.carry==='paper') paper(ax+(ch.dir==='left'?-4:12), ay+16);
+    if(ch.bubble){ const left=ch.bubble.until-now; if(left<=0) ch.bubble=null; else { ctx.globalAlpha=Math.min(1,left/500);
+      if(ch.bubble.kind==='heart') heart(ax+12,ay-12); if(ch.bubble.kind==='wait') dots(ax+12,ay-11,t); ctx.globalAlpha=1; } }
   }
 
-  const KINDS=['work','pass','reject','ship','copy','approve'];
-  function dayRow(log){
-    if(!log || log.v!==1 || !Array.isArray(log.days)) return null;
-    const row=log.days.filter(r=>r && /^\d{4}-\d{2}-\d{2}$/.test(r.d)).sort((a,b)=>a.d<b.d?-1:1).pop();
-    if(!row || Date.parse(kst().day)-Date.parse(row.d)>2*864e5) return null;
-    const S={d:row.d}; KINDS.forEach(k=>{ const n=+row[k]; S[k]=Number.isFinite(n)&&n>0?Math.min(99,Math.floor(n)):0; });
-    return S;
-  }
-  function schedule(S){
-    const beats=[]; KINDS.forEach(k=>{ for(let i=0;i<Math.min(S[k],k==='work'?6:3);i++) beats.push(k); });
-    for(let i=beats.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [beats[i],beats[j]]=[beats[j],beats[i]]; }
-    const gap=Math.max(9,Math.min(16,120/Math.max(1,beats.length)));
-    return beats.map((k,i)=>({at:4+i*gap,what:k}));
+  // monitors switch on only while someone is working at them
+  function drawScreens(t,N){
+    const on=n=>C[n].step && !C[n].step.go && (C[n].fx==='type'||C[n].fx==='read');
+    R(68,242,14,14,'#1E2630');
+    if(on('combi')) for(let i=0;i<5;i++){ const yy=243+((i*3+Math.floor(t*(reduce?0:4)))%12); R(69,yy,3+((i*5)%8),1,i%2?'#9FE0B4':'#9DB8DA'); }
+    if(on('buzzi')){ const yy=244+Math.floor(t*(reduce?0:2))%9; ctx.globalAlpha=.55; R(127,yy,12,1,'#E8C27A'); ctx.globalAlpha=1; }
+    if(N && on('bibi')){ ctx.globalAlpha=.35+.1*Math.sin(t*2); R(205,97,16,8,'#CFE3FF'); ctx.globalAlpha=1; }
   }
 
+  // ---- log panel
   const $=id=>document.getElementById(id);
-  const COLOR={combi:'#6F8FBF',buzzi:'#AD4A5B',honi:'#D9A441',bibi:'#E07A98'};
   const lines=[];
-  function logLine(who,what,day){
-    lines.push({who,what,day}); if(lines.length>5) lines.shift();
-    $('lines').innerHTML=lines.map(l=>'<div class="ln"><span>'+l.day.slice(5)+'</span><span class="sq" style="background:'+COLOR[l.who]+'"></span><b>'+l.who+'</b><span>'+l.what+'</span></div>').join('');
+  function logFlow(id,who,what){
+    lines.push({id,who,what}); if(lines.length>5) lines.shift();
+    $('lines').innerHTML=lines.map(l=>'<div class="ln"><span>'+l.id+'</span><span class="sq" style="background:'+COLOR[l.who]+'"></span><b>'+l.who+'</b><span>'+l.what+'</span></div>').join('');
+  }
+  function renderBoardList(){
+    if(!board) return;
+    const done=board.tickets.filter(t=>t.stage==='done').length;
+    $('src').textContent=board.title+' · '+done+'/'+board.tickets.length;
+    $('tickets').innerHTML=board.tickets.map(t=>'<div class="tk"><span class="sq" style="background:'+(t.stage==='later'?'#D8CFC6':COLOR[t.owner])+'"></span><span>'+t.id+'</span><span class="tt">'+t.title+'</span><span class="stg">'+STAGE_KO[t.stage]+'</span></div>').join('');
   }
   $('tog').onclick=()=>{ const h=$('log').hidden=!$('log').hidden; $('tog').setAttribute('aria-expanded',String(!h)); };
 
-  Promise.all(['bg-day.png','bg-night.png','sheet-bibi.png','sheet-combi.png','sheet-buzzi.png','sheet-honi.png'].map(load).concat(
-    fetch('events.json',{cache:'no-store'}).then(r=>r.ok?r.json():null).catch(()=>null)
-  )).then(([day,night,bibi,combi,buzzi,honi,log])=>{
+  Promise.all(['bg-day.png','bg-night.png','sheet-bibi.png','sheet-combi.png','sheet-buzzi.png','sheet-honi.png'].map(load).concat(json('board.json'),json('events.json')))
+  .then(([day,night,bibi,combi,buzzi,honi,b,log])=>{
     const SH={bibi,combi,buzzi,honi};
-    let N=isNight(), S=dayRow(log), beats=S?schedule(S):[], loopT=0, last=performance.now(), lastCheck=0;
-    const LOOP=150; let tagged=null, tagUntil=0;
-    $('src').textContent = S ? 'studio.log · daily' : 'studio.log · idle';
-    if(S){ $('tog').classList.add('live'); $('lines').innerHTML='<div class="empty">'+S.d+' 기록을 다시 보여줘요</div>'; }
-    function place(n){ const ch=C[n]; const p = n==='bibi' ? (N?'roomSeat':'lab') : ch.where; const [x,y,f]=P[p]; ch.x=x; ch.y=y; ch.dir=f; ch.where=p; ch.plan=[]; ch.step=null; ch.busy=false; }
+    if(b && b.v===1 && Array.isArray(b.tickets)){
+      board=b; board.tickets=board.tickets.filter(t=>t && /^[A-Z]+-\d+$/.test(t.id) && COLOR[t.owner] && (STAGES.includes(t.stage)||t.stage==='later'));
+      const fl=(Array.isArray(b.flow)?b.flow:[]).filter(e=>Array.isArray(e)&&recent(e[0])&&COLOR[e[2]]&&e[3] in ACTS);
+      const lastDay=fl.map(e=>e[0]).sort().pop(); flow=fl.filter(e=>e[0]===lastDay);
+      resetBoard(); renderBoardList();
+    }
+    const S=dayRow(log);
+    if(board||S) $('tog').classList.add('live');
+    $('clk').textContent = flow.length ? flow[0][0] : (S ? S.d : '');
+    let N=isNight(), last=performance.now(), lastCheck=0, beatAt=performance.now()+rnd(8000,15000), tagged=null, tagUntil=0;
+    function place(n){ const ch=C[n]; const p = n==='bibi' ? (N?'roomSeat':'lab') : ch.where; const [x,y,f]=Array.isArray(p)?p:P[p]; ch.x=x; ch.y=y; ch.dir=f; ch.where=p; ch.plan=[]; ch.step=null; ch.busy=false; ch.sitFrom=null; ch.hooks=0; ch.carry=null; }
     place('bibi');
     cv.addEventListener('click',e=>{ const r=cv.getBoundingClientRect(), x=(e.clientX-r.left)*W/r.width, y=(e.clientY-r.top)*H/r.height;
+      if(x>84 && x<163 && y>32 && y<60){ $('log').hidden=false; $('tog').setAttribute('aria-expanded','true'); return; }
       const hit=Object.values(C).filter(c=>Math.abs(c.x-x)<9 && y>c.y-38 && y<c.y+2).sort((a,b)=>b.y-a.y)[0];
-      if(hit){ tagged=hit; tagUntil=performance.now()+2200; $('tag').innerHTML=hit.name[0].toUpperCase()+hit.name.slice(1)+' <span>· '+ROLE[hit.name]+'</span>'; if(!hit.busy) interrupt(hit,[act(null,1.6,{emote:'happy',face:'down'})]); } });
-    if(DEBUG) window.__bv={C,BLOCK};
-    window.studio={ signal:(who,what)=>{ const ok=signal(who,what,N); if(ok) logLine(KIND[what]||who,what,kst().day); return ok; } };
+      if(hit){ tagged=hit; tagUntil=performance.now()+2200; hit.bubble={kind:'heart',until:performance.now()+1800};
+        $('tag').innerHTML=hit.name[0].toUpperCase()+hit.name.slice(1)+' <span>· '+ROLE[hit.name]+'</span>'; } });
+    if(DEBUG){ window.__bv={C,BLOCK,trays,board}; addEventListener('keydown',e=>{ if(e.key==='m'){ const ch=C.combi; ch.mx={t:0,spawn:!ch.mxOut}; ch.mxOut=!ch.mxOut; } }); }
+    window.studio={ flow:(id,who,a)=>{ if(!board||!ticket(id)||!COLOR[who]||!(a in ACTS)) return false; flow.push([kst().day,id,who,a]); return true; } };
+
+    function director(now){
+      if(!board || reduce || now<holdUntil) return;
+      if(Object.values(C).some(c=>c.hooks>0)) return;
+      if(rewind){ rewind=false; resetBoard(); holdUntil=now+3000; return; }
+      if(step>=flow.length){ if(flow.length){ rewind=true; holdUntil=now+25000; } return; }
+      if(runFlow(flow[step],N)){ step++; holdUntil=now+2500; }
+      else { rewind=true; holdUntil=now+20000; }   // daytime: papers wait on Bibi's desk until she is back
+    }
+
     function frame(now){
       const dt=Math.min(.1,(now-last)/1000); last=now; const t=now/1000;
-      if(now-lastCheck>20000){ lastCheck=now; const n=isNight(); if(n!==N){ N=n; place('bibi'); } }
-      if(beats.length && !reduce){ const prev=loopT; loopT=(loopT+dt)%LOOP;
-        for(const b of beats) if((prev<=b.at && loopT>b.at) || (loopT<prev && b.at>prev)) { if(signal(null,b.what,N)) logLine(KIND[b.what],b.what,S.d); }
-        if(loopT<prev) beats=schedule(S); }
+      if(now-lastCheck>20000){ lastCheck=now; const n=isNight(); if(n!==N){ N=n; Object.values(C).forEach(c=>{ c.plan=[]; c.step=null; c.hooks=0; c.carry=null; c.busy=false; }); place('bibi'); resetBoard(); rewind=false; holdUntil=now+3000; } }
+      director(now);
+      if(S && S.work && now>beatAt && !reduce){ beatAt=now+rnd(14000,26000); react('combi',[go('combiSeat'),act('type',3),act('honey',2,{emote:'happy'})]); }
       const bg=N?night:day; if(bg) ctx.drawImage(bg,0,0); else R(0,0,W,H,'#F3D9DF');
       if(!N){ const c=Math.floor(t*1.5)%2===0?'#FF9EC0':'#F7A8C0'; R(43,104,2,3,c);R(48,104,2,3,c); }
-      R(68,242,14,14,'#1E2630');
-      for(let i=0;i<5;i++){ const yy=243+((i*3+Math.floor(t*(reduce?0:4)))%12); const L=3+((i*5)%8); R(69,yy,L,1,i%2?'#9FE0B4':'#9DB8DA'); }
-      Object.values(C).forEach(ch=>update(ch,dt,N));
+      drawBoard(t); drawScreens(t,N); drawStand();
+      for(const who in trays) drawTray(who,t);
+      for(const id in bugs){ const [x,y]=TRAY[bugs[id]]; bug(x+14,y+5,t); }
+      Object.values(C).forEach(ch=>{ update(ch,dt,N); if(ch.mx){ ch.mx.t+=dt; if(ch.mx.t>MX.dur) ch.mx=null; } });
       if(DEBUG){ ctx.globalAlpha=.25; for(let gy=0;gy<GH;gy++) for(let gx=0;gx<GW;gx++) if(grid[gy*GW+gx]) R(gx*CELL,gy*CELL,CELL,CELL,'#3050C0'); ctx.globalAlpha=1;
         Object.values(C).forEach(ch=>{ if(!ch.path||!ch.path.length) return; ctx.strokeStyle=COLOR[ch.name]; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(ch.x,ch.y); ch.path.forEach(p=>ctx.lineTo(p[0],p[1])); ctx.stroke(); }); }
-      Object.values(C).sort((a,b)=>a.y-b.y).forEach(ch=>drawChar(SH[ch.name],ch,now,t));
+      Object.values(C).sort((a,b)=>a.y-b.y).forEach(ch=>{ if(!(ch.mxOut && !ch.mx)) drawChar(SH[ch.name],ch,now,t); });
       const tg=$('tag'); if(tagged && now<tagUntil){ tg.hidden=false; tg.style.left=(Math.max(14,Math.min(86,tagged.x/W*100)))+'%'; tg.style.top=((tagged.y-34)/H*100)+'%'; } else if(!tg.hidden) tg.hidden=true;
-      $('clk').textContent = S ? S.d : 'no record';
       requestAnimationFrame(frame);
     }
     requestAnimationFrame(frame);
