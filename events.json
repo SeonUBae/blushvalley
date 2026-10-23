@@ -2,22 +2,13 @@
  "v": 1,
  "days": [
   {
-   "d": "2026-10-08",
-   "work": 5,
-   "pass": 5,
-   "reject": 0,
-   "ship": 1,
-   "copy": 0,
-   "approve": 3
-  },
-  {
    "d": "2026-10-09",
-   "work": 67,
-   "pass": 50,
-   "reject": 15,
-   "ship": 9,
+   "work": 0,
+   "pass": 42,
+   "reject": 14,
+   "ship": 7,
    "copy": 0,
-   "approve": 1
+   "approve": 0
   },
   {
    "d": "2026-10-10",
@@ -98,6 +89,33 @@
    "reject": 8,
    "ship": 8,
    "copy": 2,
+   "approve": 0
+  },
+  {
+   "d": "2026-10-22",
+   "work": 3,
+   "pass": 0,
+   "reject": 0,
+   "ship": 0,
+   "copy": 0,
+   "approve": 0
+  },
+  {
+   "d": "2026-10-23",
+   "work": 4,
+   "pass": 3,
+   "reject": 0,
+   "ship": 1,
+   "copy": 0,
+   "approve": 0
+  },
+  {
+   "d": "2026-10-24",
+   "work": 0,
+   "pass": 0,
+   "reject": 0,
+   "ship": 1,
+   "copy": 0,
    "approve": 0
   }
  ]
