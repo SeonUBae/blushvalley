@@ -2,26 +2,8 @@
  "v": 1,
  "days": [
   {
-   "d": "2026-10-11",
-   "work": 0,
-   "pass": 0,
-   "reject": 0,
-   "ship": 0,
-   "copy": 0,
-   "approve": 2
-  },
-  {
-   "d": "2026-10-12",
-   "work": 5,
-   "pass": 0,
-   "reject": 0,
-   "ship": 0,
-   "copy": 0,
-   "approve": 0
-  },
-  {
    "d": "2026-10-13",
-   "work": 25,
+   "work": 24,
    "pass": 12,
    "reject": 4,
    "ship": 8,
@@ -107,6 +89,15 @@
    "reject": 2,
    "ship": 5,
    "copy": 1,
+   "approve": 0
+  },
+  {
+   "d": "2026-10-26",
+   "work": 1,
+   "pass": 1,
+   "reject": 0,
+   "ship": 1,
+   "copy": 0,
    "approve": 0
   }
  ]
