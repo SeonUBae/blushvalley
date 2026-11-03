@@ -2,26 +2,17 @@
  "v": 1,
  "days": [
   {
-   "d": "2026-10-19",
-   "work": 0,
-   "pass": 4,
-   "reject": 5,
-   "ship": 3,
-   "copy": 0,
-   "approve": 0
-  },
-  {
    "d": "2026-10-20",
-   "work": 47,
-   "pass": 18,
-   "reject": 4,
-   "ship": 7,
+   "work": 0,
+   "pass": 16,
+   "reject": 3,
+   "ship": 6,
    "copy": 0,
    "approve": 0
   },
   {
    "d": "2026-10-21",
-   "work": 69,
+   "work": 60,
    "pass": 26,
    "reject": 8,
    "ship": 8,
