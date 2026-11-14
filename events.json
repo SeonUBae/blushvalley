@@ -1,14 +1,4 @@
 {
  "v": 1,
- "days": [
-  {
-   "d": "2026-10-30",
-   "work": 0,
-   "pass": 1,
-   "reject": 1,
-   "ship": 1,
-   "copy": 0,
-   "approve": 1
-  }
- ]
+ "days": []
 }
